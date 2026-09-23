@@ -44,7 +44,26 @@ def _spreadsheet():
 
 
 def worksheet(nome: str):
-    return _spreadsheet().worksheet(nome)
+    """Ponto unico por onde toda leitura/escrita passa -- por isso e aqui que
+    falhas de conexao (secrets ausentes/errados, planilha nao compartilhada,
+    rede fora) sao convertidas numa mensagem amigavel em vez de um traceback
+    Python cru na tela do usuario final. gspread.exceptions.WorksheetNotFound
+    e propagada sem alteracao: varias telas do app dependem de captura-la
+    especificamente para saber que uma aba so ainda nao existe (nao e uma
+    falha de conexao)."""
+    try:
+        return _spreadsheet().worksheet(nome)
+    except gspread.exceptions.WorksheetNotFound:
+        raise
+    except Exception as e:
+        st.error(
+            "Não foi possível conectar ao banco de dados (Google Sheets). Verifique se as "
+            "credenciais estão configuradas em `.streamlit/secrets.toml` (local) ou em "
+            "*App settings → Secrets* (Streamlit Community Cloud), e se a planilha foi "
+            "compartilhada com o e-mail da Service Account como Editor."
+        )
+        st.caption(f"Detalhe técnico: {type(e).__name__}: {e}")
+        st.stop()
 
 
 @st.cache_data(ttl=120, show_spinner="Carregando dados do Google Sheets...")

@@ -5,19 +5,17 @@ import streamlit as st
 from src.auth import exigir_login, is_admin, logout, usuario_logado
 from src.classes_pneu import COLUNAS as COLUNAS_CLASSES_PNEU
 from src.classes_pneu import TEM_PNEU_NAO, TEM_PNEU_REVISAR, TEM_PNEU_SIM, avaliar_prefixos_sem_pneu
+from src.page_boot import logo_sidebar
 from src.sheets_client import ABA_CLASSES_PNEU, ABA_FROTA, ABA_PNEUS, ABA_USUARIOS, carregar_aba, limpar_cache, worksheet
 from src.theme import CUSTOM_CSS
 
 st.set_page_config(page_title="Administração — Tripoloni", page_icon="🔐", layout="wide")
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+logo_sidebar()
 exigir_login()
 user = usuario_logado()
 
 with st.sidebar:
-    try:
-        st.image("LOGO-HORIZONTAL-BRANCA.png", use_container_width=True)
-    except Exception:
-        st.markdown("### TRIPOLONI")
     st.markdown(f"**{user['NOME']}**  \n_{user['PERFIL']}_")
     if st.button("Sair"):
         logout()

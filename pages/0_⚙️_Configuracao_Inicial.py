@@ -17,6 +17,7 @@ import streamlit as st
 from src.auth import exigir_login, is_admin, logout, usuario_logado
 from src.carga_inicial import processar_frota, processar_local, processar_pneus
 from src.classes_pneu import seed_inicial
+from src.page_boot import logo_sidebar
 from src.sheets_client import (
     ABA_CLASSES_PNEU,
     ABA_FROTA,
@@ -33,6 +34,7 @@ from src.theme import CUSTOM_CSS
 
 st.set_page_config(page_title="Configuração Inicial — Tripoloni", page_icon="⚙️", layout="wide")
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+logo_sidebar()
 st.title("Configuração inicial do sistema")
 
 
@@ -177,10 +179,6 @@ else:
     exigir_login()
     user = usuario_logado()
     with st.sidebar:
-        try:
-            st.image("LOGO-HORIZONTAL-BRANCA.png", use_container_width=True)
-        except Exception:
-            st.markdown("### TRIPOLONI")
         st.markdown(f"**{user['NOME']}**  \n_{user['PERFIL']}_")
         if st.button("Sair"):
             logout()
