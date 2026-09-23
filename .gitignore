@@ -1,0 +1,13 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dados reais da frota/pneus da Tripoloni -- nunca vao pro git. A partir da
+# Configuracao Inicial (pages/0_...), o upload dessas planilhas acontece pelo
+# navegador direto pro Google Sheets; elas nao precisam (e nao devem) estar no
+# repositorio, nem sequer localmente versionadas.
+CONSOLIDADO_PNEUS_POR_ATIVO*.xlsx
+CONSOLIDADO FROTA*.xlsx
+LOCAL.xlsx
