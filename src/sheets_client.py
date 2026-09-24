@@ -29,6 +29,9 @@ ABA_LOCAL = "Local"
 ABA_USUARIOS = "Usuarios"
 ABA_LOG = "LogAlteracoes"
 ABA_CLASSES_PNEU = "Classes_Pneu"
+ABA_MEDIDAS_PADRAO = "Medidas_Padrao"
+ABA_ESTOQUE_FISICO = "Estoque_Fisico"
+ABA_PARAMETROS = "Parametros"
 
 
 @st.cache_resource(show_spinner=False)
@@ -108,6 +111,28 @@ def _set_cell(ws, row: int, col: int, valor):
     Usar RAW explicito via ws.update() com A1 notation grava exatamente a
     string que mandamos, sem reinterpretacao."""
     ws.update(rowcol_to_a1(row, col), [[str(valor)]], value_input_option="RAW")
+
+
+def garantir_aba(nome: str, df_default: pd.DataFrame) -> bool:
+    """Cria a aba com df_default se ela ainda nao existir; nao mexe em nada se
+    ja existir. Idempotente -- serve pra abas auxiliares adicionadas depois da
+    carga inicial (Medidas_Padrao, Estoque_Fisico, Parametros): em planilhas
+    que ja estavam em producao antes dessas abas existirem, elas sao criadas
+    sozinhas na primeira vez que a tela que precisa delas e aberta, sem
+    precisar rodar a migracao inicial de novo. Retorna True se criou.
+    """
+    try:
+        worksheet(nome)
+        return False
+    except gspread.exceptions.WorksheetNotFound:
+        pass
+
+    sh = _spreadsheet()
+    valores = df_para_valores(df_default)
+    ws = sh.add_worksheet(title=nome, rows=max(len(valores) + 10, 50), cols=max(len(valores[0]) + 2, 5))
+    ws.update(valores, value_input_option="RAW")
+    limpar_cache()
+    return True
 
 
 def substituir_aba(nome: str, df: pd.DataFrame):

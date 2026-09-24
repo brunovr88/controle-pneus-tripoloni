@@ -40,11 +40,15 @@ sys.path.insert(0, str(BASE_DIR))
 
 from src.carga_inicial import processar_frota, processar_local, processar_pneus  # noqa: E402
 from src.classes_pneu import seed_inicial  # noqa: E402
+import src.medidas_padrao as medidas_padrao  # noqa: E402
 from src.sheets_client import (  # noqa: E402
     ABA_CLASSES_PNEU,
+    ABA_ESTOQUE_FISICO,
     ABA_FROTA,
     ABA_LOCAL,
     ABA_LOG,
+    ABA_MEDIDAS_PADRAO,
+    ABA_PARAMETROS,
     ABA_PNEUS,
     ABA_USUARIOS,
     df_para_valores,
@@ -106,6 +110,26 @@ def garantir_aba_log(sh: gspread.Spreadsheet):
     escrever_aba(sh, ABA_LOG, df_log)
 
 
+def garantir_aba_estoque_fisico(sh: gspread.Spreadsheet):
+    try:
+        sh.worksheet(ABA_ESTOQUE_FISICO)
+        return
+    except gspread.WorksheetNotFound:
+        pass
+    df_estoque = pd.DataFrame(columns=["OBRA_LOCAL", "MEDIDA", "QTDE_ESTOQUE", "ULT_ATUALIZACAO", "ATUALIZADO_POR"])
+    escrever_aba(sh, ABA_ESTOQUE_FISICO, df_estoque)
+
+
+def garantir_aba_parametros(sh: gspread.Spreadsheet):
+    try:
+        sh.worksheet(ABA_PARAMETROS)
+        return
+    except gspread.WorksheetNotFound:
+        pass
+    df_parametros = pd.DataFrame([{"PCT_SOLICITADO": 10, "PCT_MINIMO": 20}])
+    escrever_aba(sh, ABA_PARAMETROS, df_parametros)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--credentials", required=True, help="Caminho do JSON da service account")
@@ -129,14 +153,18 @@ def main():
     df_frota = processar_frota(ARQ_FROTA, status_por_prefixo)
     df_local = processar_local(ARQ_LOCAL)
     df_classes_pneu = seed_inicial(df_frota, df_pneus)
+    df_medidas_padrao = medidas_padrao.seed_inicial(df_pneus)
 
     print(f"Gravando no Google Sheets '{sh.title}'...")
     escrever_aba(sh, ABA_PNEUS, df_pneus)
     escrever_aba(sh, ABA_FROTA, df_frota)
     escrever_aba(sh, ABA_LOCAL, df_local)
     escrever_aba(sh, ABA_CLASSES_PNEU, df_classes_pneu)
+    escrever_aba(sh, ABA_MEDIDAS_PADRAO, df_medidas_padrao)
     garantir_aba_usuarios(sh, args.admin_user, args.admin_password, args.admin_nome)
     garantir_aba_log(sh)
+    garantir_aba_estoque_fisico(sh)
+    garantir_aba_parametros(sh)
 
     pendentes = (df_classes_pneu["TEM_PNEU"] == "A_REVISAR").sum()
     print(f"\n{pendentes} classes operacionais ficaram como 'A_REVISAR' em {ABA_CLASSES_PNEU}")

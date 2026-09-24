@@ -62,8 +62,19 @@ CUSTOM_CSS = f"""
     section[data-testid="stSidebar"] {{
         background-color: {AZUL_ESCURO_2};
     }}
+    /* Texto solto sobre o fundo escuro (rotulos, titulos, markdown) fica claro. */
     section[data-testid="stSidebar"] * {{
         color: {CINZA_CLARO} !important;
+    }}
+    /* Mas o VALOR dentro dos campos (caixas com fundo branco) precisa ser escuro,
+       senao vira texto branco sobre fundo branco -- ilegivel. Essas regras, por
+       serem mais especificas, ganham da regra "*" acima mesmo com !important nas duas. */
+    section[data-testid="stSidebar"] input,
+    section[data-testid="stSidebar"] textarea,
+    section[data-testid="stSidebar"] div[data-baseweb="select"] *,
+    section[data-testid="stSidebar"] div[data-baseweb="base-input"] *,
+    section[data-testid="stSidebar"] div[data-baseweb="popover"] * {{
+        color: {TEXTO_PRIMARIO} !important;
     }}
     h1, h2, h3, h4 {{
         color: {AZUL_ESCURO_2};

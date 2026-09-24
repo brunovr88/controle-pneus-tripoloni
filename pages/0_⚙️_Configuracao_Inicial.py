@@ -17,12 +17,14 @@ import streamlit as st
 from src.auth import exigir_login, is_admin, logout, usuario_logado
 from src.carga_inicial import processar_frota, processar_local, processar_pneus
 from src.classes_pneu import seed_inicial
+import src.medidas_padrao as medidas_padrao
 from src.page_boot import logo_sidebar
 from src.sheets_client import (
     ABA_CLASSES_PNEU,
     ABA_FROTA,
     ABA_LOCAL,
     ABA_LOG,
+    ABA_MEDIDAS_PADRAO,
     ABA_PNEUS,
     ABA_USUARIOS,
     carregar_aba,
@@ -102,11 +104,13 @@ def _rodar_carga(arq_pneus, arq_frota, arq_local, criar_admin: dict | None):
         df_frota = processar_frota(arq_frota, status_por_prefixo)
         df_local = processar_local(arq_local)
         df_classes_pneu = seed_inicial(df_frota, df_pneus)
+        df_medidas_padrao = medidas_padrao.seed_inicial(df_pneus)
 
         substituir_aba(ABA_PNEUS, df_pneus)
         substituir_aba(ABA_FROTA, df_frota)
         substituir_aba(ABA_LOCAL, df_local)
         substituir_aba(ABA_CLASSES_PNEU, df_classes_pneu)
+        substituir_aba(ABA_MEDIDAS_PADRAO, df_medidas_padrao)
 
         try:
             worksheet(ABA_LOG)
@@ -194,7 +198,8 @@ else:
 
     st.warning(
         "O sistema já está configurado. Recarregar as bases aqui **substitui** o conteúdo atual de "
-        "Pneus, Frota, Local e Classes_Pneu (login e histórico de alterações não são afetados). "
+        "Pneus, Frota, Local, Classes_Pneu e Medidas_Padrao (login, histórico de alterações e "
+        "Estoque_Fisico não são afetados). "
         "Prefira `scripts/sincronizar_frota.py` para trazer só localização/prefixos novos sem "
         "reconstruir tudo do zero — use esta tela só para uma recarga completa mesmo."
     )

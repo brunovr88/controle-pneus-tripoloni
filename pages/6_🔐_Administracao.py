@@ -2,6 +2,7 @@ import bcrypt
 import pandas as pd
 import streamlit as st
 
+import src.medidas_padrao as medidas_padrao
 from src.auth import exigir_login, is_admin, logout, usuario_logado
 from src.classes_pneu import COLUNAS as COLUNAS_CLASSES_PNEU
 from src.classes_pneu import TEM_PNEU_NAO, TEM_PNEU_REVISAR, TEM_PNEU_SIM, avaliar_prefixos_sem_pneu
@@ -9,10 +10,13 @@ from src.page_boot import logo_sidebar
 from src.sheets_client import (
     ABA_CLASSES_PNEU,
     ABA_FROTA,
+    ABA_MEDIDAS_PADRAO,
+    ABA_PARAMETROS,
     ABA_PNEUS,
     ABA_USUARIOS,
     carregar_aba,
     df_para_valores,
+    garantir_aba,
     limpar_cache,
     worksheet,
 )
@@ -153,6 +157,65 @@ else:
             )
             if resultado["com_pneu"]:
                 st.rerun()
+
+st.divider()
+st.subheader("Medidas de pneu padronizadas")
+st.caption(
+    "Lista usada na tela Editar Equipamento — só se pode escolher uma medida daqui, pra evitar "
+    "grafias diferentes pra mesma medida (ex.: \"1000R20\" vs \"10.00R20\"). Adicione, corrija ou "
+    "remova linhas e salve."
+)
+
+garantir_aba(ABA_MEDIDAS_PADRAO, medidas_padrao.seed_inicial(carregar_aba(ABA_PNEUS)))
+df_medidas_padrao = carregar_aba(ABA_MEDIDAS_PADRAO)
+df_medidas_padrao_editado = st.data_editor(
+    df_medidas_padrao,
+    use_container_width=True,
+    hide_index=True,
+    num_rows="dynamic",
+    key="editor_medidas_padrao",
+)
+if st.button("Salvar medidas padronizadas"):
+    medidas_limpas = (
+        df_medidas_padrao_editado["MEDIDA"].astype(str).str.strip().replace("", pd.NA).dropna().drop_duplicates()
+    )
+    df_para_salvar = pd.DataFrame({"MEDIDA": sorted(medidas_limpas)})
+    ws = worksheet(ABA_MEDIDAS_PADRAO)
+    ws.clear()
+    ws.update(df_para_valores(df_para_salvar), value_input_option="RAW")
+    limpar_cache()
+    st.success("Lista de medidas atualizada.")
+    st.rerun()
+
+st.divider()
+st.subheader("Parâmetros de estoque")
+st.caption(
+    "Percentuais usados no cálculo de Estoque Solicitado e Estoque Mínimo (ver página Estoque). "
+    "Estoque Solicitado = % Solicitado × pneus rodando. Estoque Mínimo = % Mínimo × Estoque Solicitado "
+    "— é o gatilho: quando o estoque físico cair pra esse nível, pede-se reposição até o Estoque Solicitado."
+)
+
+garantir_aba(ABA_PARAMETROS, pd.DataFrame([{"PCT_SOLICITADO": 10, "PCT_MINIMO": 20}]))
+df_parametros = carregar_aba(ABA_PARAMETROS)
+linha_parametros = df_parametros.iloc[0] if not df_parametros.empty else {"PCT_SOLICITADO": 10, "PCT_MINIMO": 20}
+
+col_p1, col_p2 = st.columns(2)
+pct_solicitado = col_p1.number_input(
+    "% Solicitado (sobre pneus rodando)", min_value=1, max_value=100, value=int(float(linha_parametros["PCT_SOLICITADO"]))
+)
+pct_minimo = col_p2.number_input(
+    "% Mínimo (sobre o Estoque Solicitado)", min_value=1, max_value=100, value=int(float(linha_parametros["PCT_MINIMO"]))
+)
+if st.button("Salvar parâmetros de estoque"):
+    ws = worksheet(ABA_PARAMETROS)
+    ws.clear()
+    ws.update(
+        df_para_valores(pd.DataFrame([{"PCT_SOLICITADO": pct_solicitado, "PCT_MINIMO": pct_minimo}])),
+        value_input_option="RAW",
+    )
+    limpar_cache()
+    st.success("Parâmetros atualizados.")
+    st.rerun()
 
 st.caption(
     "Para trazer localização atualizada e prefixos novos direto de um Consolidado Frota mais recente, "

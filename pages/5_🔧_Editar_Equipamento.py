@@ -1,10 +1,18 @@
 import streamlit.components.v1 as components
 import streamlit as st
 
+import src.medidas_padrao as medidas_padrao
 from src.auth import is_admin, obra_do_usuario, usuario_logado
 from src.diagram import render_svg
 from src.page_boot import boot
-from src.sheets_client import ABA_FROTA, atualizar_linha_pneu, atualizar_linha_por_chave
+from src.sheets_client import (
+    ABA_FROTA,
+    ABA_MEDIDAS_PADRAO,
+    atualizar_linha_pneu,
+    atualizar_linha_por_chave,
+    carregar_aba,
+    garantir_aba,
+)
 
 # Precisa rodar ANTES do boot() (que cria o widget "filtro_prefixo"): so e permitido
 # pre-semear st.session_state de uma key de widget antes dela ser instanciada.
@@ -43,18 +51,21 @@ st.subheader(f"Equipamento {prefixo_sel} — {ativo['MODELO'].iloc[0] or 'modelo
 components.html(render_svg(prefixo_sel, dados_por_posicao), height=200)
 
 st.markdown("#### Dados cadastrais do ativo")
-col1, col2, col3 = st.columns(3)
 obras_disponiveis = sorted(df_completo["OBRA_LOCAL"].dropna().unique().tolist())
 status_atual = str(ativo["STATUS_CADASTRO"].iloc[0] or "NAO IDENTIFICADO").upper()
 
-with col1:
-    nova_obra = st.selectbox(
-        "Obra vinculada",
-        obras_disponiveis,
-        index=obras_disponiveis.index(obra_ativo) if obra_ativo in obras_disponiveis else 0,
-        disabled=not is_admin(),
-        key=f"obra_edit_{prefixo_sel}",
-    )
+# Linha inteira so pra Obra: nomes de obra sao longos ("MANUT. E PECAS DE
+# EQUIPAMENTOS PROPRIOS - OBRA 425 PR-317 MGA-PR") e ficavam cortados numa
+# coluna de 1/3 da largura.
+nova_obra = st.selectbox(
+    "Obra vinculada",
+    obras_disponiveis,
+    index=obras_disponiveis.index(obra_ativo) if obra_ativo in obras_disponiveis else 0,
+    disabled=not is_admin(),
+    key=f"obra_edit_{prefixo_sel}",
+)
+
+col2, col3 = st.columns(2)
 with col2:
     novo_status = st.selectbox(
         "Status do cadastro",
@@ -73,13 +84,36 @@ if st.button("Salvar dados cadastrais"):
     st.rerun()
 
 st.markdown("#### Medida e quantidade por posição")
+st.caption(
+    "A medida só pode ser escolhida da lista padronizada, pra evitar cadastros com grafias "
+    "diferentes pra mesma medida (ex.: \"1000R20\" vs \"10.00R20\"). Uma medida nova pode ser "
+    "adicionada na tela de Administração."
+)
+
+garantir_aba(ABA_MEDIDAS_PADRAO, medidas_padrao.seed_inicial(df_completo))
+lista_medidas = sorted(carregar_aba(ABA_MEDIDAS_PADRAO)["MEDIDA"].dropna().astype(str).str.strip().unique().tolist())
+lista_medidas = [m for m in lista_medidas if m]
+
 novos_valores = {}
 for posicao in ["DIANTEIRO", "TRASEIRO", "STEP"]:
     info = dados_por_posicao.get(posicao, {"medida": "", "qtde": 0})
+    medida_atual = str(info["medida"] or "").strip()
+
+    opcoes = [""] + lista_medidas
+    if medida_atual and medida_atual not in opcoes:
+        # medida legada que nao esta na lista padrao -- mantem selecionavel e
+        # avisa, em vez de trocar silenciosamente por outra coisa.
+        opcoes = [""] + sorted([*lista_medidas, medida_atual])
+        st.caption(f"⚠️ {posicao}: medida atual \"{medida_atual}\" não está na lista padrão.")
+
     c1, c2, c3 = st.columns([1, 2, 1])
     c1.markdown(f"**{posicao}**")
-    medida = c2.text_input(
-        f"Medida — {posicao}", value=info["medida"], key=f"medida_{prefixo_sel}_{posicao}", label_visibility="collapsed"
+    medida = c2.selectbox(
+        f"Medida — {posicao}",
+        opcoes,
+        index=opcoes.index(medida_atual),
+        key=f"medida_{prefixo_sel}_{posicao}",
+        label_visibility="collapsed",
     )
     qtde = c3.number_input(
         f"Qtde — {posicao}",

@@ -71,15 +71,28 @@ def montar_dataset(df_pneus: pd.DataFrame, df_frota: pd.DataFrame, df_local: pd.
     return base
 
 
-def calcular_estoque(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
-    """Estoque Solicitado = floor(10% da qtde total rodando); Estoque Minimo = floor(20% do Solicitado).
+PCT_SOLICITADO_PADRAO = 0.10
+PCT_MINIMO_PADRAO = 0.20
+
+
+def calcular_estoque(
+    df: pd.DataFrame,
+    group_cols: list[str],
+    pct_solicitado: float = PCT_SOLICITADO_PADRAO,
+    pct_minimo: float = PCT_MINIMO_PADRAO,
+) -> pd.DataFrame:
+    """Estoque Solicitado = floor(pct_solicitado * qtde total rodando).
+    Estoque Minimo = floor(pct_minimo * Estoque Solicitado) -- o "gatilho de compra":
+    quando o estoque FISICO cai pra esse nivel (ou abaixo), pede-se reposicao ate
+    o Estoque Solicitado.
 
     group_cols tipicamente ['OBRA_LOCAL', 'MEDIDA'] -- estoque e por obra+medida,
-    porque e o par que define "o que comprar e onde guardar".
+    porque e o par que define "o que comprar e onde guardar". Os percentuais tem
+    default 10%/20% mas sao ajustaveis (ver aba Parametros / tela Administracao).
     """
     agrupado = df.groupby(group_cols, as_index=False)["QTDE"].sum().rename(columns={"QTDE": "QTDE_RODANDO"})
-    agrupado["ESTOQUE_SOLICITADO"] = agrupado["QTDE_RODANDO"].apply(lambda q: math.floor(q * 0.10))
-    agrupado["ESTOQUE_MINIMO"] = agrupado["ESTOQUE_SOLICITADO"].apply(lambda q: math.floor(q * 0.20))
+    agrupado["ESTOQUE_SOLICITADO"] = agrupado["QTDE_RODANDO"].apply(lambda q: math.floor(q * pct_solicitado))
+    agrupado["ESTOQUE_MINIMO"] = agrupado["ESTOQUE_SOLICITADO"].apply(lambda q: math.floor(q * pct_minimo))
     return agrupado
 
 
@@ -89,6 +102,7 @@ def aplicar_filtros(
     modelo: str | None = None,
     classe: str | None = None,
     prefixo: str | None = None,
+    placa: str | None = None,
 ) -> pd.DataFrame:
     out = df
     if obra:
@@ -99,4 +113,6 @@ def aplicar_filtros(
         out = out[out["CLASSE"] == classe]
     if prefixo:
         out = out[out["PREFIXO"] == prefixo]
+    if placa:
+        out = out[out["PLACA"].astype(str).str.contains(placa, case=False, na=False, regex=False)]
     return out

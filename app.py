@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 
-from src.calculations import calcular_estoque
 from src.page_boot import boot
 
 df, df_filtrado = boot("Controle de Pneus (Rodantes)")
@@ -14,24 +13,8 @@ col4.metric("Medidas distintas", df_filtrado["MEDIDA"].replace("", pd.NA).nuniqu
 
 st.divider()
 
-st.subheader("Estoque recomendado por Obra × Medida")
-estoque = calcular_estoque(df_filtrado[df_filtrado["MEDIDA"] != ""], ["OBRA_LOCAL", "MEDIDA"])
-estoque = estoque.sort_values("QTDE_RODANDO", ascending=False)
-st.dataframe(
-    estoque.rename(
-        columns={
-            "OBRA_LOCAL": "Obra",
-            "MEDIDA": "Medida",
-            "QTDE_RODANDO": "Pneus rodando",
-            "ESTOQUE_SOLICITADO": "Estoque solicitado (10%)",
-            "ESTOQUE_MINIMO": "Estoque mínimo (20% do solicitado)",
-        }
-    ),
-    use_container_width=True,
-    hide_index=True,
-)
-
 st.caption(
     "Use o menu à esquerda para navegar entre as visões: Geográfica, Medidas, Frota, "
-    "Qualidade do Cadastro e Editar Equipamento."
+    "Qualidade do Cadastro, **Estoque** (estoque solicitado/mínimo/físico por obra e medida), "
+    "Editar Equipamento e Edição em Massa."
 )

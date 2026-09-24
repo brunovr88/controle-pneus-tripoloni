@@ -37,4 +37,8 @@ def render_filtros(df: pd.DataFrame) -> pd.DataFrame:
         prefixo_sel = st.selectbox("Equipamento (prefixo)", ["(todos)"] + prefixos, key="filtro_prefixo")
         prefixo_sel = None if prefixo_sel == "(todos)" else prefixo_sel
 
-    return aplicar_filtros(df, obra=obra_sel, modelo=modelo_sel, classe=classe_sel, prefixo=prefixo_sel)
+        placa_sel = st.text_input("Placa (busca parcial)", key="filtro_placa").strip() or None
+
+    return aplicar_filtros(
+        df, obra=obra_sel, modelo=modelo_sel, classe=classe_sel, prefixo=prefixo_sel, placa=placa_sel
+    )

@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.page_boot import boot
-from src.theme import AZUL_ESCURO_2, AZUL_MEDIO, AZUL_PRINCIPAL, RAMPA_SEQUENCIAL, plotly_layout
+from src.theme import AZUL_ESCURO_2, AZUL_MEDIO, AZUL_PRINCIPAL, BRANCO, CINZA_CLARO, GRID, RAMPA_SEQUENCIAL, plotly_layout
 
 _, df = boot("Visão Geográfica e Distribuição", icone="📍")
 
@@ -18,12 +18,13 @@ por_obra = (
 if por_obra.empty:
     st.info("Nenhuma obra com coordenadas cadastradas em LOCAL para plotar no mapa.")
 else:
-    # scatter_map (sem "box") e a API atual do Plotly >= 6 baseada em MapLibre;
-    # scatter_mapbox foi removida da lib e nao existe mais nas versoes recentes.
-    # Ao contrario da scatter_mapbox antiga, essa NAO centraliza sozinha nos
-    # dados -- sem 'center' explicito ela abre no (0,0), no meio do oceano,
-    # bem longe do Brasil. Centro = media das coordenadas das obras.
-    fig_mapa = px.scatter_map(
+    # scatter_geo (nao scatter_map/scatter_mapbox): desenha o mapa com o atlas
+    # vetorial embutido do Plotly, sem precisar buscar tiles de um servidor
+    # externo nem WebGL -- scatter_map dependia de carregar tiles do
+    # OpenStreetMap, que pode nao carregar atras de proxy/rede corporativa e
+    # deixava o mapa em branco. fitbounds="locations" enquadra automaticamente
+    # nos pontos plotados (Brasil), sem precisar calcular centro/zoom na mao.
+    fig_mapa = px.scatter_geo(
         por_obra,
         lat="LATITUDE",
         lon="LONGITUDE",
@@ -32,10 +33,17 @@ else:
         color_continuous_scale=RAMPA_SEQUENCIAL,
         hover_name="OBRA_LOCAL",
         hover_data={"CIDADE": True, "UF": True, "QTDE": True, "LATITUDE": False, "LONGITUDE": False},
-        zoom=3,
-        center={"lat": por_obra["LATITUDE"].mean(), "lon": por_obra["LONGITUDE"].mean()},
-        map_style="open-street-map",
         height=480,
+    )
+    fig_mapa.update_geos(
+        fitbounds="locations",
+        visible=True,
+        showcountries=True,
+        countrycolor=GRID,
+        showsubunits=True,
+        subunitcolor=GRID,
+        landcolor=BRANCO,
+        bgcolor=CINZA_CLARO,
     )
     fig_mapa.update_layout(**plotly_layout())
     fig_mapa.update_layout(margin=dict(l=0, r=0, t=0, b=0))
