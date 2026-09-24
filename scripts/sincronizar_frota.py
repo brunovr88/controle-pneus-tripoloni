@@ -46,7 +46,7 @@ sys.path.insert(0, str(BASE_DIR))
 from src.classes_pneu import COLUNAS as COLUNAS_CLASSES_PNEU  # noqa: E402
 from src.classes_pneu import TEM_PNEU_REVISAR, avaliar_prefixos_sem_pneu  # noqa: E402
 from src.frota_parser import ler_frota_bruta, localizar_arquivo_mais_recente  # noqa: E402
-from src.sheets_client import ABA_CLASSES_PNEU, ABA_FROTA, ABA_PNEUS  # noqa: E402
+from src.sheets_client import ABA_CLASSES_PNEU, ABA_FROTA, ABA_PNEUS, df_para_valores  # noqa: E402
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -157,10 +157,13 @@ def main():
     gc = gspread.authorize(creds)
     sh = gc.open_by_key(args.spreadsheet_id)
 
-    df_atual = pd.DataFrame(sh.worksheet(ABA_FROTA).get_all_records())
-    df_pneus_atual = pd.DataFrame(sh.worksheet(ABA_PNEUS).get_all_records())
+    # numericise_ignore=["all"]: sem isso o gspread converte celulas que "parecem
+    # numero" pra int/float na leitura (MODELO "950" -> 950), misturando tipos
+    # com valores como "FMX" na mesma coluna e quebrando sorted() no app.
+    df_atual = pd.DataFrame(sh.worksheet(ABA_FROTA).get_all_records(numericise_ignore=["all"]))
+    df_pneus_atual = pd.DataFrame(sh.worksheet(ABA_PNEUS).get_all_records(numericise_ignore=["all"]))
     try:
-        df_classes_pneu = pd.DataFrame(sh.worksheet(ABA_CLASSES_PNEU).get_all_records())
+        df_classes_pneu = pd.DataFrame(sh.worksheet(ABA_CLASSES_PNEU).get_all_records(numericise_ignore=["all"]))
     except gspread.WorksheetNotFound:
         df_classes_pneu = pd.DataFrame(columns=COLUNAS_CLASSES_PNEU)
 
@@ -173,14 +176,13 @@ def main():
 
     ws_frota = sh.worksheet(ABA_FROTA)
     ws_frota.clear()
-    valores = [plano["df_frota_final"].columns.tolist()] + plano["df_frota_final"].astype(str).values.tolist()
-    ws_frota.update(valores, value_input_option="USER_ENTERED")
+    ws_frota.update(df_para_valores(plano["df_frota_final"]), value_input_option="RAW")
     print(f"\n[ok] Frota atualizada: {len(plano['df_frota_final'])} ativos")
 
     if plano["prefixos_com_pneu"]:
         df_pneus_novos = montar_linhas_pneu_vazias(plano["prefixos_com_pneu"])
         ws_pneus = sh.worksheet(ABA_PNEUS)
-        ws_pneus.append_rows(df_pneus_novos.astype(str).values.tolist(), value_input_option="USER_ENTERED")
+        ws_pneus.append_rows(df_para_valores(df_pneus_novos)[1:], value_input_option="RAW")
         print(f"[ok] Pneus: {len(df_pneus_novos)} linhas novas criadas ({len(plano['prefixos_com_pneu'])} ativos)")
 
     if plano["classes_novas_pendentes"]:
@@ -188,11 +190,11 @@ def main():
             ws_classes = sh.worksheet(ABA_CLASSES_PNEU)
         except gspread.WorksheetNotFound:
             ws_classes = sh.add_worksheet(title=ABA_CLASSES_PNEU, rows=200, cols=len(COLUNAS_CLASSES_PNEU) + 2)
-            ws_classes.update([COLUNAS_CLASSES_PNEU], value_input_option="USER_ENTERED")
+            ws_classes.update([COLUNAS_CLASSES_PNEU], value_input_option="RAW")
         novas_linhas = [
             [classe, "", TEM_PNEU_REVISAR, exemplo, "", ""] for classe, exemplo in plano["classes_novas_pendentes"].items()
         ]
-        ws_classes.append_rows(novas_linhas, value_input_option="USER_ENTERED")
+        ws_classes.append_rows(novas_linhas, value_input_option="RAW")
         print(f"[ok] {ABA_CLASSES_PNEU}: {len(novas_linhas)} classes novas marcadas 'A_REVISAR'")
         print("     Confirme SIM/NAO na tela de Administração e rode a sincronização de novo (os pendentes serão reavaliados).")
 

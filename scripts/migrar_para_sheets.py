@@ -40,7 +40,15 @@ sys.path.insert(0, str(BASE_DIR))
 
 from src.carga_inicial import processar_frota, processar_local, processar_pneus  # noqa: E402
 from src.classes_pneu import seed_inicial  # noqa: E402
-from src.sheets_client import ABA_CLASSES_PNEU, ABA_FROTA, ABA_LOCAL, ABA_LOG, ABA_PNEUS, ABA_USUARIOS  # noqa: E402
+from src.sheets_client import (  # noqa: E402
+    ABA_CLASSES_PNEU,
+    ABA_FROTA,
+    ABA_LOCAL,
+    ABA_LOG,
+    ABA_PNEUS,
+    ABA_USUARIOS,
+    df_para_valores,
+)
 
 ARQ_PNEUS = BASE_DIR / "CONSOLIDADO_PNEUS_POR_ATIVO_vrs2.xlsx"
 ARQ_FROTA = BASE_DIR / "CONSOLIDADO FROTA 16.09.2026.xlsx"
@@ -59,8 +67,7 @@ def escrever_aba(sh: gspread.Spreadsheet, nome: str, df: pd.DataFrame):
     except gspread.WorksheetNotFound:
         ws = sh.add_worksheet(title=nome, rows=max(len(df) + 10, 100), cols=max(len(df.columns) + 2, 10))
 
-    valores = [df.columns.tolist()] + df.astype(str).values.tolist()
-    ws.update(valores, value_input_option="USER_ENTERED")
+    ws.update(df_para_valores(df), value_input_option="RAW")
     print(f"  [ok] {nome}: {len(df)} linhas gravadas")
 
 

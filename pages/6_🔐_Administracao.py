@@ -6,7 +6,16 @@ from src.auth import exigir_login, is_admin, logout, usuario_logado
 from src.classes_pneu import COLUNAS as COLUNAS_CLASSES_PNEU
 from src.classes_pneu import TEM_PNEU_NAO, TEM_PNEU_REVISAR, TEM_PNEU_SIM, avaliar_prefixos_sem_pneu
 from src.page_boot import logo_sidebar
-from src.sheets_client import ABA_CLASSES_PNEU, ABA_FROTA, ABA_PNEUS, ABA_USUARIOS, carregar_aba, limpar_cache, worksheet
+from src.sheets_client import (
+    ABA_CLASSES_PNEU,
+    ABA_FROTA,
+    ABA_PNEUS,
+    ABA_USUARIOS,
+    carregar_aba,
+    df_para_valores,
+    limpar_cache,
+    worksheet,
+)
 from src.theme import CUSTOM_CSS
 
 st.set_page_config(page_title="Administração — Tripoloni", page_icon="🔐", layout="wide")
@@ -105,8 +114,7 @@ else:
         if st.button("Salvar revisão de classes"):
             ws = worksheet(ABA_CLASSES_PNEU)
             ws.clear()
-            valores = [df_classes_editado.columns.tolist()] + df_classes_editado.astype(str).values.tolist()
-            ws.update(valores, value_input_option="USER_ENTERED")
+            ws.update(df_para_valores(df_classes_editado), value_input_option="RAW")
             limpar_cache()
             st.success("Classes atualizadas.")
             st.rerun()
@@ -135,7 +143,7 @@ else:
                 ]
                 df_novas = pd.DataFrame(linhas)
                 ws_pneus = worksheet(ABA_PNEUS)
-                ws_pneus.append_rows(df_novas.astype(str).values.tolist(), value_input_option="USER_ENTERED")
+                ws_pneus.append_rows(df_para_valores(df_novas)[1:], value_input_option="RAW")
                 limpar_cache()
 
             st.success(

@@ -1,6 +1,7 @@
 streamlit>=1.37
 pandas>=2.2
-plotly>=5.22
+plotly>=6.0
+matplotlib>=3.8
 gspread>=6.1
 google-auth>=2.32
 bcrypt>=4.1

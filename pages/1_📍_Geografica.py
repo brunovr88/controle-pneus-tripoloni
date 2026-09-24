@@ -18,7 +18,12 @@ por_obra = (
 if por_obra.empty:
     st.info("Nenhuma obra com coordenadas cadastradas em LOCAL para plotar no mapa.")
 else:
-    fig_mapa = px.scatter_mapbox(
+    # scatter_map (sem "box") e a API atual do Plotly >= 6 baseada em MapLibre;
+    # scatter_mapbox foi removida da lib e nao existe mais nas versoes recentes.
+    # Ao contrario da scatter_mapbox antiga, essa NAO centraliza sozinha nos
+    # dados -- sem 'center' explicito ela abre no (0,0), no meio do oceano,
+    # bem longe do Brasil. Centro = media das coordenadas das obras.
+    fig_mapa = px.scatter_map(
         por_obra,
         lat="LATITUDE",
         lon="LONGITUDE",
@@ -28,10 +33,12 @@ else:
         hover_name="OBRA_LOCAL",
         hover_data={"CIDADE": True, "UF": True, "QTDE": True, "LATITUDE": False, "LONGITUDE": False},
         zoom=3,
+        center={"lat": por_obra["LATITUDE"].mean(), "lon": por_obra["LONGITUDE"].mean()},
+        map_style="open-street-map",
         height=480,
     )
     fig_mapa.update_layout(**plotly_layout())
-    fig_mapa.update_layout(mapbox_style="open-street-map", margin=dict(l=0, r=0, t=0, b=0))
+    fig_mapa.update_layout(margin=dict(l=0, r=0, t=0, b=0))
     st.plotly_chart(fig_mapa, use_container_width=True)
 
 st.divider()

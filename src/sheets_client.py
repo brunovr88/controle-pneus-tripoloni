@@ -16,6 +16,7 @@ import gspread
 import pandas as pd
 import streamlit as st
 from google.oauth2.service_account import Credentials
+from gspread.utils import rowcol_to_a1
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -62,19 +63,51 @@ def worksheet(nome: str):
             "*App settings → Secrets* (Streamlit Community Cloud), e se a planilha foi "
             "compartilhada com o e-mail da Service Account como Editor."
         )
-        st.caption(f"Detalhe técnico: {type(e).__name__}: {e}")
+        # gspread as vezes relanca so "PermissionError" sem mensagem, escondendo a causa
+        # real (ex.: API nao ativada) em __cause__ -- mostra os dois para nao perder o motivo.
+        causa = f" | causa: {e.__cause__}" if e.__cause__ else ""
+        st.caption(f"Detalhe técnico: {type(e).__name__}: {e}{causa}")
         st.stop()
 
 
 @st.cache_data(ttl=120, show_spinner="Carregando dados do Google Sheets...")
 def carregar_aba(nome: str) -> pd.DataFrame:
     ws = worksheet(nome)
-    registros = ws.get_all_records()
+    # numericise_ignore=["all"]: por padrao o gspread converte qualquer celula
+    # que "parece numero" pra int/float na leitura -- MODELO "950" virava int
+    # e "FMX" continuava string, misturando tipos na mesma coluna e quebrando
+    # sorted() em filtros.py. O app ja faz sua propria conversao numerica onde
+    # precisa (QTDE, LATITUDE, LONGITUDE em calculations.py), entao aqui tudo
+    # deve vir como texto puro, sem "ajuda" automatica do gspread.
+    registros = ws.get_all_records(numericise_ignore=["all"])
     return pd.DataFrame(registros)
 
 
 def limpar_cache():
     carregar_aba.clear()
+
+
+def df_para_valores(df: pd.DataFrame) -> list:
+    """[cabecalho] + linhas, tudo como string, pronto pra ws.update()/append_rows().
+
+    fillna("") ANTES do astype(str) e obrigatorio: no pandas 3.x (dtype "str"
+    por padrao para colunas de texto), astype(str) numa coluna que ja e "str"
+    vira no-op e um NaN real sobrevive dentro dela -- isso quebra a
+    serializacao JSON do gspread com 'Out of range float values are not JSON
+    compliant: nan'. fillna("") elimina o NaN antes disso importar.
+    """
+    df_limpo = df.fillna("").astype(str)
+    return [df_limpo.columns.tolist()] + df_limpo.values.tolist()
+
+
+def _set_cell(ws, row: int, col: int, valor):
+    """Substitui o Worksheet.update_cell() nativo do gspread: aquele metodo
+    ignora qualquer value_input_option e SEMPRE manda USER_ENTERED pro Google,
+    que reinterpreta o conteudo (ex.: MODELO "950" virava numero em vez de
+    texto, misturando tipos na coluna e quebrando sorted() em filtros.py).
+    Usar RAW explicito via ws.update() com A1 notation grava exatamente a
+    string que mandamos, sem reinterpretacao."""
+    ws.update(rowcol_to_a1(row, col), [[str(valor)]], value_input_option="RAW")
 
 
 def substituir_aba(nome: str, df: pd.DataFrame):
@@ -90,8 +123,7 @@ def substituir_aba(nome: str, df: pd.DataFrame):
     except gspread.WorksheetNotFound:
         ws = sh.add_worksheet(title=nome, rows=max(len(df) + 10, 100), cols=max(len(df.columns) + 2, 10))
 
-    valores = [df.columns.tolist()] + df.astype(str).values.tolist()
-    ws.update(valores, value_input_option="USER_ENTERED")
+    ws.update(df_para_valores(df), value_input_option="RAW")
     limpar_cache()
 
 
@@ -127,13 +159,13 @@ def atualizar_linha_por_chave(
         anterior = ws.cell(linha_alvo, c_idx).value
         if str(anterior) == str(novo_valor):
             continue
-        ws.update_cell(linha_alvo, c_idx, novo_valor)
+        _set_cell(ws, linha_alvo, c_idx, novo_valor)
         _registrar_log(valor_chave, campo, anterior, novo_valor, usuario, agora)
 
     if "ULT_ATUALIZACAO" in cabecalho:
-        ws.update_cell(linha_alvo, cabecalho.index("ULT_ATUALIZACAO") + 1, agora)
+        _set_cell(ws, linha_alvo, cabecalho.index("ULT_ATUALIZACAO") + 1, agora)
     if "ATUALIZADO_POR" in cabecalho:
-        ws.update_cell(linha_alvo, cabecalho.index("ATUALIZADO_POR") + 1, usuario)
+        _set_cell(ws, linha_alvo, cabecalho.index("ATUALIZADO_POR") + 1, usuario)
 
     limpar_cache()
     return True
@@ -181,13 +213,13 @@ def atualizar_linha_pneu(prefixo: str, posicao: str, valores: dict, usuario: str
         anterior = ws.cell(linha_alvo, c_idx).value
         if str(anterior) == str(novo_valor):
             continue
-        ws.update_cell(linha_alvo, c_idx, novo_valor)
+        _set_cell(ws, linha_alvo, c_idx, novo_valor)
         _registrar_log(f"{prefixo}/{posicao}", campo, anterior, novo_valor, usuario, agora)
 
     if "ULT_ATUALIZACAO" in cabecalho:
-        ws.update_cell(linha_alvo, cabecalho.index("ULT_ATUALIZACAO") + 1, agora)
+        _set_cell(ws, linha_alvo, cabecalho.index("ULT_ATUALIZACAO") + 1, agora)
     if "ATUALIZADO_POR" in cabecalho:
-        ws.update_cell(linha_alvo, cabecalho.index("ATUALIZADO_POR") + 1, usuario)
+        _set_cell(ws, linha_alvo, cabecalho.index("ATUALIZADO_POR") + 1, usuario)
 
     limpar_cache()
     return True

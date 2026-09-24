@@ -39,9 +39,14 @@ st.title("Configuração inicial do sistema")
 
 
 def _conexao_ok() -> bool:
+    """Checa se os secrets existem, sem NUNCA deixar o valor deles como
+    expressao solta: o "magic" do Streamlit renderiza automaticamente
+    qualquer expressao nao atribuida (mesmo dentro de funcao) -- foi
+    exatamente isso que vazou a chave privada na tela antes desse fix.
+    """
     try:
-        st.secrets["gcp_service_account"]
-        st.secrets["sheets"]["spreadsheet_id"]
+        _ = st.secrets["gcp_service_account"]["private_key"]
+        _ = st.secrets["sheets"]["spreadsheet_id"]
         return True
     except Exception:
         return False
