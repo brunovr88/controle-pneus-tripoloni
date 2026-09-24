@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from src.auth import is_admin, obra_do_usuario
-from src.calculations import aplicar_filtros
+from src.calculations import aplicar_filtros, rotulo_obra_curto
 
 
 def render_filtros(df: pd.DataFrame) -> pd.DataFrame:
@@ -20,7 +20,9 @@ def render_filtros(df: pd.DataFrame) -> pd.DataFrame:
             obra_sel = obra_travada
         else:
             obras = sorted(df["OBRA_LOCAL"].dropna().unique().tolist())
-            obra_sel = st.selectbox("Obra", ["(todas)"] + obras, key="filtro_obra")
+            obra_sel = st.selectbox(
+                "Obra", ["(todas)"] + obras, key="filtro_obra", format_func=rotulo_obra_curto
+            )
             obra_sel = None if obra_sel == "(todas)" else obra_sel
 
         df_escopo = df if not obra_travada else df[df["OBRA_LOCAL"] == obra_travada]

@@ -1,5 +1,6 @@
 import src.medidas_padrao as medidas_padrao
 from src.auth import is_admin, usuario_logado
+from src.calculations import rotulo_obra_curto
 from src.page_boot import boot
 from src.sheets_client import (
     ABA_FROTA,
@@ -49,7 +50,7 @@ if acao == "Obra vinculada":
         st.error("Só administradores podem alterar obra vinculada em massa.")
         st.stop()
     obras_disponiveis = sorted(df_completo["OBRA_LOCAL"].dropna().unique().tolist())
-    nova_obra = st.selectbox("Nova obra vinculada", obras_disponiveis)
+    nova_obra = st.selectbox("Nova obra vinculada", obras_disponiveis, format_func=rotulo_obra_curto)
 
     if st.button(f"Aplicar a {len(prefixos_selecionados)} equipamento(s)", type="primary"):
         barra = st.progress(0.0)

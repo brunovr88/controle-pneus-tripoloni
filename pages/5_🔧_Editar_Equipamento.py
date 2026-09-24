@@ -3,6 +3,7 @@ import streamlit as st
 
 import src.medidas_padrao as medidas_padrao
 from src.auth import is_admin, obra_do_usuario, usuario_logado
+from src.calculations import rotulo_obra_curto
 from src.diagram import render_svg
 from src.page_boot import boot
 from src.sheets_client import (
@@ -63,6 +64,7 @@ nova_obra = st.selectbox(
     index=obras_disponiveis.index(obra_ativo) if obra_ativo in obras_disponiveis else 0,
     disabled=not is_admin(),
     key=f"obra_edit_{prefixo_sel}",
+    format_func=rotulo_obra_curto,
 )
 
 col2, col3 = st.columns(2)

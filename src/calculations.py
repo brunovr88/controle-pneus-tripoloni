@@ -12,6 +12,7 @@ Pneus.PREFIXO -> Frota.PREFIXO -> Frota.OBRA_LOCAL -> Local.OBRA_LOCAL.
 from __future__ import annotations
 
 import math
+import re
 
 import pandas as pd
 
@@ -49,6 +50,42 @@ def extrair_classe(grupo: str) -> str:
     if not grupo or not isinstance(grupo, str):
         return "N/D"
     return grupo.split(" - ")[0].strip()
+
+
+_PADRAO_OBRA = re.compile(r"OBRA\s+\d+.*", re.IGNORECASE)
+
+
+def rotulo_obra_curto(nome: str) -> str:
+    """Encurta o nome de obra para exibir no seletor, colocando a parte que
+    DIFERENCIA uma obra da outra (numero + cidade) primeiro.
+
+    Os nomes reais sao longos e quase todos comecam igual (ex.: "MANUT. E
+    PECAS DE EQUIPAMENTOS PROPRIOS - OBRA 425 ..." vs "...OBRA 426 ..." vs
+    "...OBRA 427..."). Um <input> nativo (o selectbox pesquisavel do Streamlit
+    usa um) nao quebra linha nem faz "..." configuravel via CSS -- ele so
+    mostra o comeco do texto, entao varias obras diferentes ficavam com a
+    MESMA aparencia na caixa. Aqui so muda o ROTULO exibido; o valor
+    retornado pelo widget (usado pra filtrar) continua sendo o nome completo
+    original, entao nao ha risco de misturar duas obras diferentes.
+    """
+    if not nome or not isinstance(nome, str):
+        return nome
+
+    m = _PADRAO_OBRA.search(nome)
+    if not m:
+        return nome
+
+    prefixo = nome[: m.start()].strip(" -").upper()
+    if "PRÓPRIOS" in prefixo or "PROPRIOS" in prefixo:
+        tag = "Próprios"
+    elif "TERCEIROS" in prefixo:
+        tag = "Terceiros"
+    elif prefixo:
+        tag = prefixo[:24].title()
+    else:
+        return nome
+
+    return f"{m.group(0).strip()} — {tag}"
 
 
 def montar_dataset(df_pneus: pd.DataFrame, df_frota: pd.DataFrame, df_local: pd.DataFrame) -> pd.DataFrame:

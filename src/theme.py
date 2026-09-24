@@ -60,21 +60,40 @@ CUSTOM_CSS = f"""
         background-color: {CINZA_CLARO};
     }}
     section[data-testid="stSidebar"] {{
+        min-width: 400px !important;
+        max-width: 460px !important;
         background-color: {AZUL_ESCURO_2};
     }}
-    /* Texto solto sobre o fundo escuro (rotulos, titulos, markdown) fica claro. */
-    section[data-testid="stSidebar"] * {{
+    /* So texto que fica DIRETO sobre o fundo escuro (rotulos, titulos, markdown,
+       links de navegacao) vira claro -- nunca os widgets (input/select), que tem
+       fundo proprio branco e ja vem com texto escuro por padrao do Streamlit.
+       Tentar forcar cor em tudo com "*" e depois abrir excecao pros widgets e
+       fragil (a lista de opcoes do select e um popover que o BaseWeb as vezes
+       porta pra fora da sidebar no DOM, e a excecao nao alcancava o valor
+       fechado do campo -- ficava texto branco sobre fundo branco, ilegivel).
+       Essa lista positiva nunca encosta no CSS interno dos widgets. */
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"],
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] *,
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *,
+    section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"],
+    section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"] * {{
         color: {CINZA_CLARO} !important;
     }}
-    /* Mas o VALOR dentro dos campos (caixas com fundo branco) precisa ser escuro,
-       senao vira texto branco sobre fundo branco -- ilegivel. Essas regras, por
-       serem mais especificas, ganham da regra "*" acima mesmo com !important nas duas. */
-    section[data-testid="stSidebar"] input,
-    section[data-testid="stSidebar"] textarea,
-    section[data-testid="stSidebar"] div[data-baseweb="select"] *,
-    section[data-testid="stSidebar"] div[data-baseweb="base-input"] *,
-    section[data-testid="stSidebar"] div[data-baseweb="popover"] * {{
-        color: {TEXTO_PRIMARIO} !important;
+    /* Lista de opcoes do dropdown (fora da sidebar no DOM -- o BaseWeb porta
+       o popover pra document.body): deixa quebrar linha em vez de cortar,
+       util pra qualquer texto de opcao mais longo (modelo, classe...). O
+       campo FECHADO do select e um <input> nativo, que nao quebra linha por
+       CSS de jeito nenhum -- pra esse caso o fix real e encurtar o ROTULO
+       exibido (ver rotulo_obra_curto() em calculations.py, usado via
+       format_func nos selectbox de obra). */
+    ul[role="listbox"] li,
+    ul[role="listbox"] li * {{
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        word-break: break-word;
     }}
     h1, h2, h3, h4 {{
         color: {AZUL_ESCURO_2};
